@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 	"os"
 
@@ -17,15 +18,15 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-var googleOauthConfig = &oauth2.Config{
-	ClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
-	ClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
-	RedirectURL:  os.Getenv("GOOGLE_REDIRECT_URL"),
-	Scopes:       []string{"https://www.googleapis.com/auth/userinfo.email", "https://www.googleapis.com/auth/userinfo.profile"},
-	Endpoint:     google.Endpoint,
-}
-
 func GoogleLogin(c *fiber.Ctx) error {
+	googleOauthConfig := &oauth2.Config{
+		ClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
+		ClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
+		RedirectURL:  os.Getenv("GOOGLE_REDIRECT_URL"),
+		Scopes:       []string{"https://www.googleapis.com/auth/userinfo.email", "https://www.googleapis.com/auth/userinfo.profile"},
+		Endpoint:     google.Endpoint,
+	}
+
 	sess, err := sessionconfig.SessionStart(c)
 	if err != nil {
 		_ = flashmessages.SetFlashMessage(c, flashmessages.FlashErrorKey, "Oturum başlatılamadı.")
@@ -45,10 +46,19 @@ func GoogleLogin(c *fiber.Ctx) error {
 	}
 
 	url := googleOauthConfig.AuthCodeURL(stateToken, oauth2.AccessTypeOffline)
+	log.Println("Generated Google OAuth URL:", url)
 	return c.Redirect(url, http.StatusTemporaryRedirect)
 }
 
 func GoogleCallback(c *fiber.Ctx) error {
+	googleOauthConfig := &oauth2.Config{
+		ClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
+		ClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
+		RedirectURL:  os.Getenv("GOOGLE_REDIRECT_URL"),
+		Scopes:       []string{"https://www.googleapis.com/auth/userinfo.email", "https://www.googleapis.com/auth/userinfo.profile"},
+		Endpoint:     google.Endpoint,
+	}
+
 	state := c.Query("state")
 	if state == "" {
 		_ = flashmessages.SetFlashMessage(c, flashmessages.FlashErrorKey, "State parametresi eksik.")
@@ -99,10 +109,11 @@ func GoogleCallback(c *fiber.Ctx) error {
 
 	authService := services.NewAuthService()
 	user, err := authService.FindOrCreateUser(models.User{
-		Provider:   "google",
-		ProviderID: userInfo.ID,
-		Account:    userInfo.Email,
-		Name:       userInfo.Name,
+		Provider:      "google",
+		ProviderID:    userInfo.ID,
+		Account:       userInfo.Email,
+		Name:          userInfo.Name,
+		EmailVerified: true,
 	})
 	if err != nil {
 		_ = flashmessages.SetFlashMessage(c, flashmessages.FlashErrorKey, "Kullanıcı oluşturulamadı veya giriş yapılamadı.")
@@ -112,7 +123,7 @@ func GoogleCallback(c *fiber.Ctx) error {
 	sess.Set("user_id", user.ID)
 	sess.Set("user_type", string(user.Type))
 	sess.Set("user_status", user.Status)
-	if err := sess.Save(); err != nil {
+	if err = sess.Save(); err != nil {
 		_ = flashmessages.SetFlashMessage(c, flashmessages.FlashErrorKey, "Oturum kaydedilemedi.")
 		return c.Redirect("/auth/login", fiber.StatusSeeOther)
 	}
