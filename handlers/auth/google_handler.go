@@ -3,7 +3,6 @@ package handlers
 import (
 	"context"
 	"encoding/json"
-	"log"
 	"net/http"
 	"os"
 
@@ -27,7 +26,6 @@ var googleOauthConfig = &oauth2.Config{
 }
 
 func GoogleLogin(c *fiber.Ctx) error {
-	log.Println("GoogleLogin: Başlatıldı")
 	sess, err := sessionconfig.SessionStart(c)
 	if err != nil {
 		_ = flashmessages.SetFlashMessage(c, flashmessages.FlashErrorKey, "Oturum başlatılamadı.")
@@ -46,14 +44,11 @@ func GoogleLogin(c *fiber.Ctx) error {
 		return c.Redirect("/auth/login", fiber.StatusSeeOther)
 	}
 
-	log.Println("GoogleLogin: State token oluşturuldu ve kaydedildi", stateToken)
 	url := googleOauthConfig.AuthCodeURL(stateToken, oauth2.AccessTypeOffline)
-	log.Println("GoogleLogin: Yönlendirme URL'si oluşturuldu", url)
 	return c.Redirect(url, http.StatusTemporaryRedirect)
 }
 
 func GoogleCallback(c *fiber.Ctx) error {
-	log.Println("GoogleCallback: Başlatıldı")
 	state := c.Query("state")
 	if state == "" {
 		_ = flashmessages.SetFlashMessage(c, flashmessages.FlashErrorKey, "State parametresi eksik.")
